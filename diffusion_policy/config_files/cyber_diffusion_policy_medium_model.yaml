@@ -1,4 +1,5 @@
-_target_: diffusion_policy.workspace.train_diffusion_transformer_lowdim_workspace.TrainDiffusionTransformerLowdimWorkspace
+_target_: 
+  diffusion_policy.workspace.train_diffusion_transformer_lowdim_workspace.TrainDiffusionTransformerLowdimWorkspace
 action_dim: 12
 checkpoint:
   save_last_ckpt: true
@@ -25,18 +26,19 @@ exp_name: default
 horizon: 12
 keypoint_visible_rate: 1.0
 logging:
-  group: null
-  id: null
+  group:
+  id:
   mode: online
   name: 2023.01.16-20.11.42_train_diffusion_transformer_cyber_lowdim
   project: diffusion_policy_debug
   resume: true
   tags:
-  - train_diffusion_transformer_lowdim
-  - legged_lowdim
-  - default
+    - train_diffusion_transformer_lowdim
+    - legged_lowdim
+    - default
 multi_run:
-  run_dir: data/outputs/2023.01.16/20.11.42_train_diffusion_transformer_cyber_lowdim
+  run_dir: 
+    data/outputs/2023.01.16/20.11.42_train_diffusion_transformer_cyber_lowdim
   wandb_name_base: 2023.01.16-20.11.42_train_diffusion_transformer_cyber_lowdim
 n_action_steps: 4
 n_latency_steps: 0
@@ -46,19 +48,21 @@ obs_as_cond: true
 obs_dim: 45
 optimizer:
   betas:
-  - 0.9
-  - 0.95
+    - 0.9
+    - 0.95
   learning_rate: 0.0001
   weight_decay: 0.001
 past_action_visible: false
 policy:
-  _target_: diffusion_policy.policy.diffusion_transformer_lowdim_policy.DiffusionTransformerLowdimPolicy
+  _target_: 
+    diffusion_policy.policy.diffusion_transformer_lowdim_policy.DiffusionTransformerLowdimPolicy
   action_dim: 12
   horizon: 12
   model:
-    _target_: diffusion_policy.model.diffusion.transformer_for_diffusion.TransformerForDiffusion
+    _target_: 
+      diffusion_policy.model.diffusion.transformer_for_diffusion.TransformerForDiffusion
     causal_attn: true
-    cond_dim: 42
+    cond_dim: 45
     horizon: 12
     input_dim: 12
     n_cond_layers: 0
@@ -98,7 +102,8 @@ task:
     pad_before: 1
     seed: 42
     val_ratio: 0.02
-    zarr_path: recorded_data_5_skills_large.zarr
+    zarr_path: 
+      /home/landau/mygit/DiffuseLocoForBipedal/combined_data/recorded_data_combined_2025-08-08-11-06-31.zarr
   env_runner:
     _target_: diffusion_policy.env_runner.cyber_runner.LeggedRunner
     agent_keypoints: false
@@ -107,7 +112,7 @@ task:
     legacy_test: true
     max_steps: 300
     n_action_steps: 4
-    n_envs: null
+    n_envs:
     n_latency_steps: 0
     n_obs_steps: 8
     n_test: 50
@@ -128,8 +133,8 @@ training:
   gradient_accumulate_every: 1
   lr_scheduler: cosine
   lr_warmup_steps: 10000
-  max_train_steps: null
-  max_val_steps: null
+  max_train_steps:
+  max_val_steps:
   num_epochs: 1000
   resume: true
   rollout_every: 3
