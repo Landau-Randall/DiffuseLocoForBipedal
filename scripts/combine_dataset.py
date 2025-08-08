@@ -3,14 +3,26 @@ import time
 import numpy as np
 import click
 import pathlib
+from ruamel.yaml import YAML
 
 @click.command()
-@click.option("-o","--output",default="./combined_data",help="target output directory")
+@click.option("-o","--output",default="./combined_data/",help="target output directory")
+@click.option("-c","--config",default="./diffusion_policy/config_files/cyber_diffusion_policy_medium_model.yaml",type=click.Path(exists=True))
 @click.option("-f","--file",multiple=True,required=True,type=click.Path(exists=True),help="input files(just like --file file1 --file file2)")
-def main(output:str,file:tuple):
+def main(output:str,config:str,file:tuple):
     pathlib.Path(output).mkdir(parents=True, exist_ok=True)
-    zrootname = "recorded_data_{}_{}.zarr".format('combined', time.strftime("%H-%M-%S", time.localtime()))
-    zroot = zarr.open_group(output+"/"+zrootname,mode='w')
+    zrootname = "recorded_data_{}_{}.zarr".format('combined', time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime()))
+
+    yaml = YAML()
+    yaml.preserve_quotes = True  
+    yaml.indent(mapping=2, sequence=4, offset=2) 
+    with open('./diffusion_policy/config_files/cyber_diffusion_policy_medium_model.yaml', 'r', encoding='utf-8') as f:
+        data = yaml.load(f)
+    data["task"]["dataset"]["zarr_path"] = str(pathlib.Path(output+zrootname).resolve())
+    with open(config, 'w', encoding='utf-8') as f:
+        yaml.dump(data, f)
+
+    zroot = zarr.open_group(output+zrootname,mode='w')
     zroot.create_group("data")
     zdata = zroot["data"]
 
