@@ -21,6 +21,7 @@ import numpy as np
 import shutil
 
 import zarr
+import ipdb
 
 
 from diffusion_policy.common.pytorch_util import dict_apply, optimizer_to
@@ -62,20 +63,28 @@ class TrainDiffusionTransformerLowdimWorkspace(BaseWorkspace):
         self.global_step = 0
         self.epoch = 0
 
-    def run(self):
-        cfg = copy.deepcopy(self.cfg)
+    def test(self):
+        if self.output_dir is not None:
+            print(self.output_dir)
 
+    def run(self):
+
+        if self.output_dir is None:
+            raise Exception("the output directory is not set!")
+        
+        cfg = copy.deepcopy(self.cfg)
         # resume training
         if cfg.training.resume:
             lastest_ckpt_path = self.get_checkpoint_path()
             if lastest_ckpt_path.is_file():
                 print(f"Resuming from checkpoint {lastest_ckpt_path}")
                 self.load_checkpoint(path=lastest_ckpt_path)
+                
 
         # configure dataset
         dataset: BaseLowdimDataset
         dataset = hydra.utils.instantiate(cfg.task.dataset)
-        assert isinstance(dataset, BaseLowdimDataset)
+        assert isinstance(dataset, BaseLowdimDataset)#断言dataset是否是这一个类的实例
         train_dataloader = DataLoader(dataset, **cfg.dataloader)
         normalizer = dataset.get_normalizer()
 
@@ -106,13 +115,13 @@ class TrainDiffusionTransformerLowdimWorkspace(BaseWorkspace):
             ema = hydra.utils.instantiate(
                 cfg.ema,
                 model=self.ema_model)
-
+        
         # configure env runner
-        env_runner: BaseLowdimRunner
-        env_runner = hydra.utils.instantiate(
-            cfg.task.env_runner,
-            output_dir=self.output_dir)
-        assert isinstance(env_runner, BaseLowdimRunner)
+        # env_runner: BaseLowdimRunner
+        # env_runner = hydra.utils.instantiate(
+        #     cfg.task.env_runner,
+        #     output_dir=self.output_dir)
+        # assert isinstance(env_runner, BaseLowdimRunner)
 
         # configure logging
         wandb_run = wandb.init(
@@ -159,7 +168,7 @@ class TrainDiffusionTransformerLowdimWorkspace(BaseWorkspace):
                 # ========= train for this epoch ==========
                 train_losses = list()
                 with tqdm.tqdm(train_dataloader, desc=f"Training epoch {self.epoch}", 
-                        leave=False, mininterval=cfg.training.tqdm_interval_sec) as tepoch:
+                        leave=False, mininterval=cfg.training.tqdm_interval_sec) as tepoch: #进度条
                     for batch_idx, batch in enumerate(tepoch):
                         # device transfer
                         batch = dict_apply(batch, lambda x: x.to(device, non_blocking=True))
@@ -215,58 +224,59 @@ class TrainDiffusionTransformerLowdimWorkspace(BaseWorkspace):
                 policy.eval()
 
                 # run rollout
-                if (self.epoch % cfg.training.rollout_every) == 0:
-                    with torch.no_grad():
-                        # sample trajectory from training set, and evaluate difference
-                        filename = env_runner.run(policy)
+            # if (self.epoch % cfg.training.rollout_every) == 0:
+            #     with torch.no_grad():
+            #         # sample trajectory from training set, and evaluate difference
+            #         filename = env_runner.run(policy)
+                    
+            #         dataset = hydra.utils.instantiate(cfg.task.eval_dataset)
+            #         assert isinstance(dataset, BaseLowdimDataset)
+            #         eval_dataloader = DataLoader(dataset, **cfg.dataloader)
+                    
+            #         for batch_idx, batch in enumerate(eval_dataloader):
+                    
+            #             batch = {}
+            #         with zarr.open(filename) as dataset:
+            #             obs = np.array(dataset.data.state)
+            #             actions = np.array(dataset.data.action)
+            #             episode_indices = np.concatenate([np.array([np.arange(i, i + policy.horizon) for i in range(j*100, j*100+20)]) for j in range(12)])
+            #             episode_indices = episode_indices.flatten()
+            #             obs = obs[episode_indices].reshape(-1, policy.horizon, obs.shape[-1])
+            #             actions = actions[episode_indices].reshape(-1, policy.horizon, actions.shape[-1])
                         
-                        # dataset = hydra.utils.instantiate(cfg.task.eval_dataset)
-                        # assert isinstance(dataset, BaseLowdimDataset)
-                        # eval_dataloader = DataLoader(dataset, **cfg.dataloader)
+                        # batch['obs'] = np.concatenate([obs[..., :-35], obs[..., -5:]], axis=-1)
+                    #     batch['obs'] = obs
+                    #     batch['action'] = actions
+                    #     batch = dict_apply(batch, torch.from_numpy)
+                    #     batch = dict_apply(batch, lambda x: x.to(device, non_blocking=True))
+                    #     obs_dict = {'obs': batch['obs']}
+                    #     gt_action = batch['action']
                         
-                        # for batch_idx, batch in enumerate(eval_dataloader):
-                        
-                        # batch = {}
-                        # with zarr.open(filename) as dataset:
-                        #     obs = np.array(dataset.data.state)
-                        #     actions = np.array(dataset.data.action)
-                        #     episode_indices = np.concatenate([np.array([np.arange(i, i + policy.horizon) for i in range(j*100, j*100+20)]) for j in range(12)])
-                        #     episode_indices = episode_indices.flatten()
-                        #     obs = obs[episode_indices].reshape(-1, policy.horizon, obs.shape[-1])
-                        #     actions = actions[episode_indices].reshape(-1, policy.horizon, actions.shape[-1])
-                            
-                        #     # batch['obs'] = np.concatenate([obs[..., :-35], obs[..., -5:]], axis=-1)
-                        #     batch['obs'] = obs
-                        #     batch['action'] = actions
-                        #     batch = dict_apply(batch, torch.from_numpy)
-                        #     batch = dict_apply(batch, lambda x: x.to(device, non_blocking=True))
-                        #     obs_dict = {'obs': batch['obs']}
-                        #     gt_action = batch['action']
-                            
-                        #     result = policy.predict_action(obs_dict)
-                        #     if cfg.pred_action_steps_only:
-                        #         pred_action = result['action']
-                        #         start = cfg.n_obs_steps - 1
-                        #         end = start + cfg.n_action_steps
-                        #         gt_action = gt_action[:,start:end]
-                        #     else:
-                        #         pred_action = result['action_pred']
-                        #     mse = torch.nn.functional.mse_loss(pred_action, gt_action)
-                        #     # log
-                        #     step_log['eval_action_mse_error'] = np.sqrt(mse.item())
-                        #     print("eval mse: ", mse.item(), np.sqrt(mse.item()))
-                        #     # release RAM
-                        #     del batch
-                        #     del obs_dict
-                        #     del gt_action
-                        #     del result
-                        #     del pred_action
-                        #     del mse
-                        # del dataset
-                        shutil.rmtree(filename)
+                    #     result = policy.predict_action(obs_dict)
+                    #     if cfg.pred_action_steps_only:
+                    #         pred_action = result['action']
+                    #         start = cfg.n_obs_steps - 1
+                    #         end = start + cfg.n_action_steps
+                    #         gt_action = gt_action[:,start:end]
+                    #     else:
+                    #         pred_action = result['action_pred']
+                    #     mse = torch.nn.functional.mse_loss(pred_action, gt_action)
+                    #     # log
+                    #     step_log['eval_action_mse_error'] = np.sqrt(mse.item())
+                    #     print("eval mse: ", mse.item(), np.sqrt(mse.item()))
+                    #     # release RAM
+                    #     del batch
+                    #     del obs_dict
+                    #     del gt_action
+                    #     del result
+                    #     del pred_action
+                    #     del mse
+                    # del dataset
+                    # shutil.rmtree(filename)
 
                 # run validation
                 if (self.epoch % cfg.training.val_every) == 0:
+                    print("validation!")
                     with torch.no_grad():
                         val_losses = list()
                         with tqdm.tqdm(val_dataloader, desc=f"Validation epoch {self.epoch}", 
@@ -285,6 +295,7 @@ class TrainDiffusionTransformerLowdimWorkspace(BaseWorkspace):
             
                 # run diffusion sampling on a training batch
                 if (self.epoch % cfg.training.sample_every) == 0:
+                    print("diffusion sample!")
                     with torch.no_grad():
                         # sample trajectory from training set, and evaluate difference
                         batch = dict_apply(train_sampling_batch, lambda x: x.to(device, non_blocking=True))
@@ -310,10 +321,13 @@ class TrainDiffusionTransformerLowdimWorkspace(BaseWorkspace):
 
                 # checkpoint
                 if (self.epoch % cfg.training.checkpoint_every) == 0:
+                    print(f"save the checkpoint at epoch{self.epoch}")
                     # checkpointing
                     if cfg.checkpoint.save_last_ckpt:
+                        print("save last checkpoint")
                         self.save_checkpoint()
                     if cfg.checkpoint.save_last_snapshot:
+                        print("save last snapshot")
                         self.save_snapshot()
 
                     # sanitize metric names
@@ -331,6 +345,7 @@ class TrainDiffusionTransformerLowdimWorkspace(BaseWorkspace):
                     topk_ckpt_path = topk_manager.get_ckpt_path(metric_dict)
 
                     if topk_ckpt_path is not None:
+                        print(topk_ckpt_path)
                         self.save_checkpoint(path=topk_ckpt_path)
                 # ========= eval end for this epoch ==========
                 policy.train()
@@ -352,3 +367,5 @@ def main(cfg):
 
 if __name__ == "__main__":
     main()
+
+# %%
