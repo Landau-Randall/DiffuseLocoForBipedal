@@ -1,5 +1,6 @@
 _target_: 
   diffusion_policy.workspace.train_diffusion_transformer_lowdim_workspace.TrainDiffusionTransformerLowdimWorkspace
+output_dir : ./output
 action_dim: 12
 checkpoint:
   save_last_ckpt: true
@@ -10,7 +11,7 @@ checkpoint:
     mode: max
     monitor_key: test_mean_score
 dataloader:
-  batch_size: 4096
+  batch_size: 512
   num_workers: 1
   persistent_workers: false
   pin_memory: true
